@@ -3,7 +3,7 @@ mkdir ./checkpoints
 
 #### Model links from google drive.
 gdown 12MmoyH-UUQTQr3WOZXSXD3HV10iwUoba -O ./checkpoints/doyenTalker_V0.0.2_256.safetensors
-gdown 1_IaiMJ3q3noEWqJmjXemHFx77byymZMh -O ./checkpoints/mapping_00229-model.pth
+gdown 1_IaiMJ3q3noEWqJmjXemHFx77byymZMh -O ./checkpoints/mapping_00229-model.pth.tar
 gdown 1gR4l5leM5mfKKeSOWtY6wplFikxGehgX -O ./checkpoints/mapping_00109-model.pth.tar
 
 ### enhancer 

@@ -25,23 +25,23 @@ def split_text(text, max_words=100):
 def main(args):
     tstart = time.time()
     
-    # # Function to read the content of the message file
-    # def read_message_from_file(file_path):
-    #     with open(file_path, 'r') as file:
-    #         return file.read()
+    # Function to read the content of the message file
+    def read_message_from_file(file_path):
+        with open(file_path, 'r') as file:
+            return file.read()
 
-    # # Initialize variables
-    # message = None
+    # Initialize variables
+    message = None
 
-    # # Conditionally read the message file
-    # if args.message_file:
-    #     message = read_message_from_file(args.message_file)
+    # Conditionally read the message file
+    if args.message_file:
+        message = read_message_from_file(args.message_file)
 
     input_voice = args.voice
     input_lang = args.lang
-    message = args.message_file
+    # message = args.message_file
     
-    path_id = str(int(time.time()))
+    path_id = args.task_id or str(int(time.time()))
     path = os.path.join(args.result_dir,path_id)
     
     print("path_id:", path_id, "path:", path)
@@ -49,21 +49,25 @@ def main(args):
     
     # Generate audio for chunks of text
     audio_files = []
-    text_chunks = split_text(message)  # Function to split text into chunks
+    tspeech = 0
     
-    tspeech_start = time.time()  # Start timing speech generation
-    
-    print("-----------------------------------------")
-    print("generating speech")
-    
-    for i, message in enumerate(text_chunks):
-        audio_file = f"output_part_{i + 1}.wav"
-        audio_path = os.path.join(path, audio_file)
-        try:
-            generate_speech(path, audio_file, message, input_voice, input_lang)
-            audio_files.append(audio_path)
-        except Exception as e:
-            print(f"An error occurred while generating audio for text {i + 1}: {e}")
+    if args.audio_file:
+        audio_files.append(args.audio_file)
+    else:
+        text_chunks = split_text(message)
+        tspeech_start = time.time()  # Start timing speech generation
+        print("-----------------------------------------")
+        print("generating speech")
+        for i, message in enumerate(text_chunks):
+            audio_file = f"output_part_{i + 1}.wav"
+            audio_path = os.path.join(path, audio_file)
+            try:
+                generate_speech(path, audio_file, message, input_voice, input_lang)
+                audio_files.append(audio_path)
+            except Exception as e:
+                print(f"An error occurred while generating audio for text {i + 1}: {e}")
+        tspeech_end = time.time()
+        tspeech = tspeech_end - tspeech_start
  
     # tts_output = "output.wav"
 
@@ -73,8 +77,6 @@ def main(args):
     
     # generate_speech(path_id, tts_output, message, input_voice, input_lang)
     
-    tspeech_end = time.time()
-    tspeech = tspeech_end - tspeech_start
     
     # tts_audio = os.path.join(path, "output.wav")
     
@@ -201,7 +203,9 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser()
     
-    parser.add_argument("--message_file", type=str, help="path to the file containing the speech message")
+    parser.add_argument("--task_id", type=str, default=None, help="the id of this task")
+    parser.add_argument("--message_file", type=str, default=None, help="path to the file containing the speech message")
+    parser.add_argument("--audio_file", type=str, default=None, help="path to driving audio")
     parser.add_argument("--voice", type=str, default='./assets/voice/ab_voice.mp3', help="path to speaker voice file")
     parser.add_argument("--lang", type=str, default='en', help="select the language for speaker voice option are (en - English , es - Spanish , fr - French , de - German , it - Italian , pt - Portuguese , pl - Polish , tr - Turkish , ru - Russian , nl - Dutch , cs - Czech , ar - Araic , zh-cn - Chinese (Simplified) , hu - Hungarian , ko - Korean , ja - Japanese , hi - Hindi)")
     parser.add_argument("--avatar_image", default='./assets/avatar/male1.jpeg', help="path to avatar image")

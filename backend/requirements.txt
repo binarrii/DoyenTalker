@@ -11,7 +11,7 @@ yacs==0.1.8
 pyyaml  
 joblib==1.1.0
 scikit-image
-basicsr
+basicsr @ git+https://github.com/XPixelGroup/BasicSR@8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a
 facexlib==0.3.0
 gradio
 gfpgan
@@ -28,3 +28,4 @@ flask_cors
 flask
 humanize
 moviepy
+nest-asyncio
