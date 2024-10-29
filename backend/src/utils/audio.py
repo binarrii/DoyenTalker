@@ -1,5 +1,6 @@
 import librosa
 import librosa.filters
+import soundfile as sf
 import numpy as np
 # import tensorflow as tf
 from scipy import signal
@@ -134,3 +135,19 @@ def _denormalize(D):
         return (((D + hp.max_abs_value) * -hp.min_level_db / (2 * hp.max_abs_value)) + hp.min_level_db)
     else:
         return ((D * -hp.min_level_db / hp.max_abs_value) + hp.min_level_db)
+    
+def get_duration(audio_path: str):
+    y, sr = librosa.load(audio_path, sr=None)
+    duration = librosa.get_duration(y=y, sr=sr)
+    return duration
+
+def change_duration(input_audio, output_audio, stretch_ratio=None, target_duration=None):
+    if not stretch_ratio and not target_duration:
+        raise RuntimeError('Either `duration_ratio` or `target_duration` must be present')
+    
+    y, sr = librosa.load(input_audio, sr=None)
+    if target_duration is not None:
+        original_duration = librosa.get_duration(y=y, sr=sr)
+        stretch_ratio = original_duration / target_duration
+    y_stretched = librosa.effects.time_stretch(y, stretch_ratio)
+    sf.write(output_audio, y_stretched, sr)

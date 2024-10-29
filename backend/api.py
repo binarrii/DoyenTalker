@@ -4,11 +4,8 @@ import subprocess
 import time
 import traceback
 import uuid
-import cv2
 import torch
 import uvicorn
-
-import numpy as np
 
 from argparse import Namespace
 from fastapi import FastAPI, Request, HTTPException
@@ -44,16 +41,6 @@ async def assets(request: Request):
         with open(portrait_image_path, 'wb') as f:
             raw_bytes = await portrait.read()
             f.write(raw_bytes)
-            
-            # img_bgr = cv2.imdecode(np.frombuffer(raw_bytes, np.uint8), cv2.IMREAD_COLOR)
-            # h, w = img_bgr.shape[:2]
-            # dlimit = 1024
-            # if w > dlimit:
-            #     img_bgr = cv2.resize(img_bgr, (dlimit, int(h / (w / dlimit))))
-            # elif h > dlimit:
-            #     img_bgr = cv2.resize(img_bgr, (int(w / (h / dlimit)), dlimit))
-            # _, buffer = cv2.imencode(".jpeg", img_bgr, [cv2.IMWRITE_JPEG_QUALITY, 100])
-            # f.write(buffer.tobytes())
     else:
         raise HTTPException(status_code=400, detail='Portrait image is required')
 
@@ -89,7 +76,7 @@ async def assets(request: Request):
         result_dir="./results",
         pose_style=0,
         batch_size=2,
-        size=512,
+        size=256,
         expression_scale=1.5,
         input_yaw=None,
         input_pitch=None,
@@ -112,27 +99,31 @@ async def assets(request: Request):
         camera_d=10.,
         z_near=5.,
         z_far=15.,
-        device="cuda" if torch.cuda.is_available() else "cpu"
+        device="cuda" if torch.cuda.is_available() else "cpu",
+        workdir=tmp_path,
     )
 
     try:
         output_dir = os.path.join('results')
         os.makedirs(output_dir, exist_ok=True)
         
-        # subprocess.run(command, check=True, cwd=os.path.dirname(__file__))
         execute_doyentalker(args=args)
         
-        output_video_path = os.path.join(output_dir, f"{task_id}.mp4")
-        print(f">>>>>>>>>>>>>>>>>>>> {output_video_path}")
+        final_output_video_path = os.path.join(output_dir, f"{task_id}.mp4")
+        print(f">>>>> final output video path: {os.path.abspath(final_output_video_path)}")
     except subprocess.CalledProcessError as e:
-        output_video_path = ""
+        final_output_video_path = ""
         print(f"Error running DoyenTalker: {e}")
 
     def iterfile():
-        with open(output_video_path, mode='rb') as f:
+        with open(final_output_video_path, mode='rb') as f:
             yield from f
 
-    return StreamingResponse(iterfile(), media_type='video/mp4')
+    return StreamingResponse(
+        content=iterfile(),
+        headers={'x-taskid': task_id},
+        media_type='video/mp4'
+    )
 
 
 if __name__ == "__main__":

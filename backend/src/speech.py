@@ -27,7 +27,7 @@ def generate_speech(path_id, outfile, text, speaker_wav=None, language="en"):
     # tts.tts_to_file(text=text, file_path=output_path, speaker_wav=speaker_wav)
 
     # communicate = edge_tts.Communicate(text=text, voice="zh-CN-XiaoxiaoNeural")
-    communicate = edge_tts.Communicate(text=text, voice=language)
+    communicate = edge_tts.Communicate(text=text, voice=language, rate="+0%")
     task = communicate.save(output_path)
 
     loop = asyncio.get_event_loop()

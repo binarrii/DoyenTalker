@@ -1,4 +1,6 @@
+import re
 import shutil
+import subprocess
 import torch
 import time 
 import os, sys, time
@@ -14,7 +16,7 @@ from src.facerender.animate import AnimateFromCoeff
 from src.generate_audio_batch import get_data
 from src.generate_facerender_batch import get_facerender_data
 from src.utils.init_path import init_path
-
+from src.utils import audio
 
 
 def split_text(text, max_words=100):
@@ -30,16 +32,8 @@ def main(args):
         with open(file_path, 'r') as file:
             return file.read()
 
-    # Initialize variables
-    message = None
-
-    # Conditionally read the message file
-    if args.message_file:
-        message = read_message_from_file(args.message_file)
-
     input_voice = args.voice
     input_lang = args.lang
-    # message = args.message_file
     
     path_id = args.task_id or str(int(time.time()))
     path = os.path.join(args.result_dir,path_id)
@@ -50,40 +44,47 @@ def main(args):
     # Generate audio for chunks of text
     audio_files = []
     tspeech = 0
-    
-    if args.audio_file:
-        audio_files.append(args.audio_file)
-    else:
+
+    # Conditionally read the message file
+    if args.message_file:
+        message = read_message_from_file(args.message_file)
         text_chunks = split_text(message)
         tspeech_start = time.time()  # Start timing speech generation
         print("-----------------------------------------")
         print("generating speech")
-        for i, message in enumerate(text_chunks):
-            audio_file = f"output_part_{i + 1}.wav"
-            audio_path = os.path.join(path, audio_file)
+        for i, chunk in enumerate(text_chunks):
+            audio_part = f"output_part_{i + 1}.t.wav"
+            audio_path = os.path.join(path, audio_part)
             try:
-                generate_speech(path, audio_file, message, input_voice, input_lang)
+                generate_speech(path, audio_part, chunk, input_voice, input_lang)
                 audio_files.append(audio_path)
+                print(f">>>>> audio_files: {len(audio_files)}")
+                if args.audio_file:
+                    total_duration = 0
+                    for a in audio_files:
+                        total_duration += audio.get_duration(a)
+                    print(f">>>>> total_duration: {total_duration}")
+                    target_duration = audio.get_duration(args.audio_file)
+                    print(f">>>>> target_duration: {target_duration}")
+                    stretch_ratio = total_duration / target_duration
+                    print(f">>>>> stretch_ratio: {stretch_ratio}")
+                    audio_files_new = []
+                    for a in audio_files:
+                        ao = a.replace('.t.wav', '.mp3')
+                        audio.change_duration(a, ao, stretch_ratio=stretch_ratio)
+                        audio_files_new.append(ao)
+                    audio_files = audio_files_new
+                    print(f">>>>> audio_files_new: {len(audio_files)}")
             except Exception as e:
                 print(f"An error occurred while generating audio for text {i + 1}: {e}")
         tspeech_end = time.time()
         tspeech = tspeech_end - tspeech_start
- 
-    # tts_output = "output.wav"
-
-    # print("-----------------------------------------")
-    # print("generating speech")
-    # tspeech_start = time.time()
-    
-    # generate_speech(path_id, tts_output, message, input_voice, input_lang)
-    
-    
-    # tts_audio = os.path.join(path, "output.wav")
+    else:
+        audio_files.append(args.audio_file)
     
     video_files = []
 
     pic_path = args.avatar_image
-    # audio_path = tts_audio
     save_dir = path
     pose_style = args.pose_style
     device = args.device
@@ -178,12 +179,29 @@ def main(args):
     
     final_clip = concatenate_videoclips(clips, method="compose")
     final_clip.write_videofile(combined_video_path, codec="libx264")
+    print(f">>>>> final_clip: {final_clip.duration}")
     
     tcombine_video_end = time.time()  
     t_combine_video = tcombine_video_end - tcombine_video_start
     
-    shutil.move(combined_video_path,args.result_dir)
+    combined_video_path = shutil.move(combined_video_path, args.result_dir)
     print('The generated video is named:', combined_video_path)
+
+    if args.audio_file and args.message_file:
+        final_output_video_path = f"{args.workdir}/{os.path.basename(combined_video_path)}"
+        subprocess.call([
+            'ffmpeg',
+            '-i', os.path.abspath(combined_video_path),
+            '-i', os.path.abspath(args.audio_file),
+            '-c:v', 'copy',
+            '-map', '0:v',
+            '-map', '1:a',
+            '-shortest',
+            '-y',
+            final_output_video_path
+        ])
+        os.remove(combined_video_path)
+        shutil.move(final_output_video_path, combined_video_path)
 
 
     if not args.verbose:
