@@ -1,4 +1,5 @@
 import os
+import requests
 import torch
 # from TTS.api import TTS
 import time
@@ -26,14 +27,28 @@ def generate_speech(path_id, outfile, text, speaker_wav=None, language="en"):
     # tts.tts_to_file(text=text, file_path=output_path, speaker_wav=speaker_wav, language=language)
     # tts.tts_to_file(text=text, file_path=output_path, speaker_wav=speaker_wav)
 
-    # communicate = edge_tts.Communicate(text=text, voice="zh-CN-XiaoxiaoNeural")
-    communicate = edge_tts.Communicate(text=text, voice=language, rate="+0%")
-    task = communicate.save(output_path)
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(asyncio.gather(task))
+    try:
+        _generate_speech_from_edge_tts(output_path, text, language)
+    except:
+        _generate_speech_from_gptsovits(output_path, text, language)
     
     return output_path
+
+def _generate_speech_from_edge_tts(output_path, text, language="zh-CN-XiaoxiaoNeural"):
+    communicate = edge_tts.Communicate(text=text, voice=language, rate="+0%")
+    task = communicate.save(output_path)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(asyncio.gather(task))
+
+def _generate_speech_from_gptsovits(output_path, text, language="zh-cn"):
+    url = 'http://192.168.1.73:9880/tts'
+    with requests.post(url, json={"text": text}) as resp:
+        if resp.status_code == 200:
+            with open(output_path, 'wb+') as f:
+                for chunk in resp.iter_content(chunk_size=4096):
+                    f.write(chunk)
+        else:
+            raise RuntimeError(f"Error from GPT-SoVITS: {resp.status_code}")
 
 def read_message_from_file(file_path):
     with open(file_path, 'r') as file:
